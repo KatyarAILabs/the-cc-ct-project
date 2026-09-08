@@ -1,0 +1,219 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>The CC/CT Project — Architecture</title>
+<style>
+  :root{
+    --bg:#f6f7f9; --panel:#fff; --ink:#101418; --muted:#5a6572; --line:#dfe3e9;
+    --accent:#1f4e8c; --accent-soft:#e8f0fa;
+    --oss:#1c6b45; --oss-soft:#e6f5ee;
+    --prop:#8a4b00; --prop-soft:#fdf1e0;
+    --shadow:0 1px 2px rgba(16,20,24,.06), 0 8px 24px rgba(16,20,24,.06);
+  }
+  /* The embedded viewers follow the system theme, so this shell must too —
+     otherwise the page chrome and the diagram disagree on a dark desktop. */
+  @media (prefers-color-scheme: dark){
+    :root:not([data-theme="light"]){
+    --bg:#0e1116; --panel:#151a21; --ink:#e8ecf1; --muted:#93a0b0; --line:#252c36;
+    --accent:#7fb2f0; --accent-soft:#16233a;
+    --oss:#5fd39b; --oss-soft:#10281e;
+    --prop:#e0a85f; --prop-soft:#2a1f10;
+    --shadow:0 1px 2px rgba(0,0,0,.4), 0 8px 24px rgba(0,0,0,.35);
+    }
+  }
+  :root[data-theme="dark"]{
+    --bg:#0e1116; --panel:#151a21; --ink:#e8ecf1; --muted:#93a0b0; --line:#252c36;
+    --accent:#7fb2f0; --accent-soft:#16233a;
+    --oss:#5fd39b; --oss-soft:#10281e;
+    --prop:#e0a85f; --prop-soft:#2a1f10;
+    --shadow:0 1px 2px rgba(0,0,0,.4), 0 8px 24px rgba(0,0,0,.35);
+  }
+  *{box-sizing:border-box}
+  html,body{height:100%}
+  body{
+    margin:0; background:var(--bg); color:var(--ink);
+    font:14px/1.5 ui-monospace,"SF Mono",Menlo,Consolas,monospace;
+    display:flex; flex-direction:column; overflow:hidden;
+  }
+  header{
+    flex:0 0 auto; background:var(--panel); border-bottom:1px solid var(--line);
+    padding:10px 16px; display:flex; align-items:center; gap:16px; flex-wrap:wrap;
+  }
+  .brand{display:flex; align-items:baseline; gap:10px; margin-right:auto}
+  .dot{width:9px;height:9px;border-radius:50%;background:var(--accent);flex:0 0 auto;align-self:center}
+  .brand h1{font-size:15px; margin:0; letter-spacing:-.2px; font-weight:700}
+  .brand .exp{font-size:11px; color:var(--muted); letter-spacing:1.4px; text-transform:uppercase}
+  nav{display:flex; gap:6px; flex:0 1 auto}
+  .tab{
+    display:flex; align-items:center; gap:9px; cursor:pointer; user-select:none;
+    background:transparent; color:var(--ink); border:1px solid var(--line);
+    border-radius:8px; padding:6px 11px; font:inherit; font-size:12px; white-space:nowrap;
+    transition:background .15s, border-color .15s;
+  }
+  .tab:hover{background:var(--accent-soft)}
+  .tab[aria-selected="true"]{border-color:var(--accent); background:var(--accent-soft); font-weight:700}
+  .pill{font-size:9.5px; letter-spacing:.3px; padding:2px 6px; border-radius:20px; font-weight:700; white-space:nowrap}
+  .pill.both{background:var(--accent-soft); color:var(--accent)}
+  .pill.oss{background:var(--oss-soft); color:var(--oss)}
+  .pill.prop{background:var(--prop-soft); color:var(--prop)}
+  .actions{display:flex; gap:6px; flex:0 0 auto}
+  .btn{
+    cursor:pointer; background:transparent; color:var(--muted); border:1px solid var(--line);
+    border-radius:8px; padding:7px 11px; font:inherit; font-size:12px;
+  }
+  .btn:hover{color:var(--ink); background:var(--accent-soft)}
+  main{flex:1 1 auto; position:relative; min-height:0}
+  iframe{position:absolute; inset:0; width:100%; height:100%; border:0; background:var(--bg)}
+  iframe[hidden]{display:none}
+  #info{
+    flex:0 0 auto; background:var(--panel); border-top:1px solid var(--line);
+    padding:14px 16px 16px; font-size:12px; color:var(--muted);
+    display:none; max-height:42vh; overflow:auto;
+  }
+  #info.open{display:block}
+  .grid{display:grid; grid-template-columns:repeat(auto-fit,minmax(260px,1fr)); gap:14px; margin-bottom:12px}
+  .card{border:1px solid var(--line); border-radius:8px; padding:11px 13px; background:var(--bg)}
+  .card h3{margin:0 0 6px; font-size:12px; color:var(--ink); letter-spacing:.3px}
+  .card p{margin:0 0 6px}
+  .card b{color:var(--ink); font-weight:700}
+  .seam{border-left:3px solid var(--accent); padding-left:11px; margin:0 0 12px}
+  .seam b{color:var(--ink)}
+  table{border-collapse:collapse; width:100%; font-size:11px}
+  th,td{text-align:left; padding:4px 8px; border-bottom:1px solid var(--line)}
+  th{color:var(--ink); font-weight:700}
+  code{background:var(--accent-soft); color:var(--accent); padding:1px 5px; border-radius:3px; font-size:11px}
+  @media (max-width:1320px){ .brand .exp{display:none} }
+  @media (max-width:900px){ .tab span.lbl{display:none} }
+</style>
+</head>
+<body>
+
+<header>
+  <div class="brand">
+    <span class="dot"></span>
+    <h1>The CC/CT Project</h1>
+    <span class="exp">Continuous Capture / Continuous Training</span>
+  </div>
+  <nav role="tablist">
+    <button class="tab" role="tab" id="tab-overview" aria-selected="true"  aria-controls="f-overview">
+      <span class="lbl">Overall Product</span><span class="pill both">BOTH ENGINES</span>
+    </button>
+    <button class="tab" role="tab" id="tab-capture"  aria-selected="false" aria-controls="f-capture">
+      <span class="lbl">Continuous Capture</span><span class="pill oss">APACHE-2.0</span>
+    </button>
+    <button class="tab" role="tab" id="tab-training" aria-selected="false" aria-controls="f-training">
+      <span class="lbl">Continuous Training</span><span class="pill prop">PROPRIETARY</span>
+    </button>
+  </nav>
+  <div class="actions">
+    <button class="btn" id="about">About</button>
+    <button class="btn" id="theme">Dark</button>
+  </div>
+</header>
+
+<main>
+  <iframe id="f-overview" title="The CC/CT Project — Overall Product" src="diagrams/overview.html"></iframe>
+  <iframe id="f-capture"  title="Continuous Capture — Collector Pipeline" hidden data-src="diagrams/capture.html"></iframe>
+  <iframe id="f-training" title="Continuous Training — Model Engine" hidden data-src="diagrams/training.html"></iframe>
+</main>
+
+<section id="info">
+  <p class="seam"><b>The seam.</b> Capture ends when a clean, redacted event lands in a sink you control. Training begins with deciding which 2&ndash;5% of it is worth learning from. The boundary is the canonical event schema <code>event.v1</code> &mdash; a technical fault line, not a commercial one, which is why it holds.</p>
+
+  <div class="grid">
+    <div class="card">
+      <h3>Overall product &mdash; the loop</h3>
+      <p>Apps call the gateway; Capture taps it off the request path; the customer's own log shipper carries <code>event.v1</code> across the seam; Training refines and trains; the gate releases weights back.</p>
+      <p>Deployed models generate new traffic, which becomes the next dataset version. <b>That arrow is what makes this a subscription rather than a project.</b></p>
+    </div>
+    <div class="card">
+      <h3>Continuous Capture &mdash; open source</h3>
+      <p>Taps an existing gateway off the request path, assembles conversations, redacts inside your network, and <b>joins outcome signals that arrive after the completion</b>.</p>
+      <p>Writes JSONL. Fluent Bit, Vector, or the OTel Collector do the shipping &mdash; we do not implement sinks at all, so we structurally cannot prefer our own destination.</p>
+    </div>
+    <div class="card">
+      <h3>Continuous Training &mdash; commercial</h3>
+      <p>Refines bronze to gold by <b>aggressive subtraction</b>, mines preference pairs from edit signals, trains, and proves the result beats both the base model and the frontier baseline.</p>
+      <p>No weights leave without green evaluations and a zero canary-leak result. The gate is a pipeline stage, not a policy.</p>
+    </div>
+    <div class="card">
+      <h3>Why the split is here</h3>
+      <p>Capture wins by being <b>trusted and ubiquitous</b> &mdash; a collector reading every employee prompt is exactly the software a CISO wants to read the source of.</p>
+      <p>Training wins by <b>accumulated judgement</b> about what to discard, which is the part that does not survive being copied.</p>
+    </div>
+  </div>
+
+  <table>
+    <tr><th>Diagram</th><th>Type</th><th>Validation</th><th>Artifact SHA-256</th></tr>
+    <tr><td>The CC/CT Project &mdash; Overall Product</td><td>architecture &middot; 8 components, 2 regions</td><td>9/9 checks &middot; showcase &middot; 0 errors, 0 warnings</td><td><code>6b2b99c7fa130694&hellip;</code></td></tr>
+    <tr><td>Continuous Capture &mdash; Collector Pipeline</td><td>dataflow &middot; 5 stages, 12 nodes</td><td>9/9 checks &middot; showcase &middot; 0 errors, 0 warnings</td><td><code>2b1f79b859548202&hellip;</code></td></tr>
+    <tr><td>Continuous Training &mdash; Model Engine</td><td>workflow v2 &middot; 6 lanes, 8 nodes</td><td>9/9 checks &middot; showcase &middot; 0 errors, 0 warnings</td><td><code>1e399916c7600fe1&hellip;</code></td></tr>
+  </table>
+  <p style="margin-top:10px">Both diagrams are embedded byte-for-byte as delivered; hashes above match their delivery receipts. Each frame keeps its own theme toggle, guided views, search, tracing, presentation mode, and PNG/SVG/WebM export.</p>
+</section>
+
+<script>
+(function(){
+  var tabs = [
+    { btn: document.getElementById('tab-overview'), frame: document.getElementById('f-overview'), hash: '#overview' },
+    { btn: document.getElementById('tab-capture'),  frame: document.getElementById('f-capture'),  hash: '#capture'  },
+    { btn: document.getElementById('tab-training'), frame: document.getElementById('f-training'), hash: '#training' }
+  ];
+
+  function select(i, push){
+    tabs.forEach(function(t, j){
+      var on = i === j;
+      t.btn.setAttribute('aria-selected', on ? 'true' : 'false');
+      t.frame.hidden = !on;
+      // Load the second viewer only when first shown: each is ~700KB with its
+      // own runtime, and loading both up front makes the first paint slower
+      // for no benefit.
+      if (on && !t.frame.src && t.frame.dataset.src) t.frame.src = t.frame.dataset.src;
+    });
+    if (push && location.hash !== tabs[i].hash) history.replaceState(null, '', tabs[i].hash);
+  }
+
+  tabs.forEach(function(t, i){ t.btn.addEventListener('click', function(){ select(i, true); }); });
+
+  // Deep link support: /index.html#training opens that engine directly.
+  var start = tabs.findIndex(function(t){ return t.hash === location.hash; });
+  select(start < 0 ? 0 : start, false);
+
+  // Theme is this shell's own; each embedded viewer keeps its independent toggle.
+  var root = document.documentElement, btn = document.getElementById('theme');
+  var media = window.matchMedia('(prefers-color-scheme: dark)');
+  var saved = null;
+  try { saved = localStorage.getItem('ccct-theme'); } catch (e) {}
+  if (saved) root.setAttribute('data-theme', saved);
+
+  // With no explicit choice the attribute is absent and CSS follows the system,
+  // so read the resolved state rather than assuming light.
+  function effective(){
+    var attr = root.getAttribute('data-theme');
+    return attr ? attr : (media.matches ? 'dark' : 'light');
+  }
+  function paint(){ btn.textContent = effective() === 'dark' ? 'Light' : 'Dark'; }
+  paint();
+  btn.addEventListener('click', function(){
+    var next = effective() === 'dark' ? 'light' : 'dark';
+    root.setAttribute('data-theme', next);
+    try { localStorage.setItem('ccct-theme', next); } catch (e) {}
+    paint();
+  });
+  // Track the system while the viewer has no explicit override.
+  media.addEventListener('change', function(){ if (!root.getAttribute('data-theme')) paint(); });
+
+  var info = document.getElementById('info');
+  document.getElementById('about').addEventListener('click', function(){ info.classList.toggle('open'); });
+
+  document.addEventListener('keydown', function(e){
+    if (e.key === '1') select(0, true);
+    if (e.key === '2') select(1, true);
+    if (e.key === '3') select(2, true);
+  });
+})();
+</script>
+</body>
+</html>

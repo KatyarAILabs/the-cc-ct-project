@@ -1,0 +1,276 @@
+{
+  "schema_version": 1,
+  "diagram_type": "architecture",
+  "meta": {
+    "title": "The CC/CT Project \u2014 Overall Product",
+    "quality_profile": "showcase",
+    "viewBox": [
+      1000,
+      700
+    ],
+    "views": [
+      {
+        "id": "capture-half",
+        "label": "Capture (open source)",
+        "focus": [
+          "apps",
+          "gateway",
+          "capture",
+          "shipper"
+        ],
+        "note": "Traffic is tapped off the request path, redacted in place, and handed to a log shipper the customer already runs."
+      },
+      {
+        "id": "the-seam",
+        "label": "The seam",
+        "focus": [
+          "shipper",
+          "training",
+          "gate"
+        ],
+        "note": "event.v1 is the boundary between the two engines: a technical fault line, not a commercial one."
+      },
+      {
+        "id": "ownership",
+        "label": "What they own",
+        "focus": [
+          "gate",
+          "weights",
+          "serving",
+          "apps"
+        ],
+        "note": "Weights and datasets come back in open formats and run on the customer's own hardware, closing the loop."
+      }
+    ]
+  },
+  "components": [
+    {
+      "id": "apps",
+      "type": "frontend",
+      "label": "Internal Apps",
+      "sublabel": "copilots, agents",
+      "pos": [
+        40,
+        70
+      ],
+      "size": [
+        150,
+        64
+      ],
+      "tag": "instrumented"
+    },
+    {
+      "id": "gateway",
+      "type": "external",
+      "label": "AI Gateway",
+      "sublabel": "already yours",
+      "pos": [
+        270,
+        70
+      ],
+      "size": [
+        150,
+        64
+      ],
+      "tag": "unmodified"
+    },
+    {
+      "id": "capture",
+      "type": "backend",
+      "label": "Continuous Capture",
+      "sublabel": "collector",
+      "pos": [
+        270,
+        205
+      ],
+      "size": [
+        150,
+        74
+      ],
+      "tag": "Apache-2.0"
+    },
+    {
+      "id": "shipper",
+      "type": "external",
+      "label": "Log Shipper",
+      "sublabel": "Fluent Bit, Vector",
+      "pos": [
+        270,
+        340
+      ],
+      "size": [
+        150,
+        64
+      ],
+      "tag": "you route it"
+    },
+    {
+      "id": "weights",
+      "type": "database",
+      "label": "Weights + Card",
+      "sublabel": "open formats",
+      "pos": [
+        270,
+        475
+      ],
+      "size": [
+        150,
+        64
+      ],
+      "tag": "you own it"
+    },
+    {
+      "id": "serving",
+      "type": "cloud",
+      "label": "Your Serving",
+      "sublabel": "vLLM, Ollama",
+      "pos": [
+        40,
+        475
+      ],
+      "size": [
+        150,
+        64
+      ],
+      "tag": "your hardware"
+    },
+    {
+      "id": "training",
+      "type": "cloud",
+      "label": "Continuous Training",
+      "sublabel": "refine and train",
+      "pos": [
+        660,
+        205
+      ],
+      "size": [
+        160,
+        74
+      ],
+      "tag": "proprietary"
+    },
+    {
+      "id": "gate",
+      "type": "security",
+      "label": "Release Gate",
+      "sublabel": "canary probe",
+      "pos": [
+        660,
+        340
+      ],
+      "size": [
+        160,
+        64
+      ],
+      "tag": "cannot waive"
+    }
+  ],
+  "boundaries": [
+    {
+      "kind": "region",
+      "label": "Customer infrastructure \u2014 raw traffic never leaves",
+      "wraps": [
+        "apps",
+        "gateway",
+        "capture",
+        "shipper",
+        "weights",
+        "serving"
+      ]
+    },
+    {
+      "kind": "region",
+      "label": "CC/CT platform \u2014 per-tenant isolated",
+      "wraps": [
+        "training",
+        "gate"
+      ]
+    }
+  ],
+  "connections": [
+    {
+      "id": "calls",
+      "from": "apps",
+      "to": "gateway",
+      "label": "LLM calls"
+    },
+    {
+      "id": "tapped",
+      "from": "gateway",
+      "to": "capture",
+      "label": "tap, off path",
+      "variant": "emphasis",
+      "labelDy": 24
+    },
+    {
+      "id": "jsonl",
+      "from": "capture",
+      "to": "shipper",
+      "label": "canonical JSONL",
+      "labelDy": 24
+    },
+    {
+      "id": "seam",
+      "from": "shipper",
+      "to": "training",
+      "label": "event.v1",
+      "variant": "emphasis"
+    },
+    {
+      "id": "candidate",
+      "from": "training",
+      "to": "gate",
+      "label": "candidate",
+      "labelDy": 24
+    },
+    {
+      "id": "released",
+      "from": "gate",
+      "to": "weights",
+      "label": "green, no leak",
+      "variant": "emphasis"
+    },
+    {
+      "id": "deploy",
+      "from": "weights",
+      "to": "serving",
+      "label": "deploy"
+    },
+    {
+      "id": "loop",
+      "from": "serving",
+      "to": "apps",
+      "label": "your model answers",
+      "variant": "dashed"
+    }
+  ],
+  "cards": [
+    {
+      "dot": "emerald",
+      "title": "One loop, two engines",
+      "items": [
+        "Capture runs in the customer's network and never touches the request path",
+        "Training refines, trains, and proves the model beats the frontier baseline",
+        "Deployed models generate new traffic, which becomes the next dataset version"
+      ]
+    },
+    {
+      "dot": "cyan",
+      "title": "The seam is event.v1",
+      "items": [
+        "Capture ends when a redacted event lands in a sink the customer controls",
+        "Training begins by deciding which 2-5% of it is worth learning from",
+        "A technical fault line, not a commercial one, which is why it holds"
+      ]
+    },
+    {
+      "dot": "amber",
+      "title": "Ownership is the product",
+      "items": [
+        "Weights, adapters, and datasets return in open, exportable formats",
+        "Models run on the customer's own hardware, registered into their gateway",
+        "No hostage: the collector is Apache-2.0 and the output is theirs"
+      ]
+    }
+  ]
+}
